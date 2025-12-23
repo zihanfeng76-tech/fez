@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>冯梓寒的万花筒国潮纹样</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Microsoft YaHei', sans-serif;
+        }
+        
+        canvas {
+            display: block;
+        }
+        
+        #ui-panel {
+            position: absolute;
+            left: 10px;
+            top: 10px;
+            background: rgba(20, 20, 20, 0.75);
+            border: 1px solid rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(6px);
+            border-radius: 10px;
+            color: #eee;
+            padding: 10px 12px;
+            z-index: 10;
+            max-width: 420px;
+            user-select: none;
+            box-sizing: border-box;
+        }
+        
+        #ui-panel h3 {
+            margin: 6px 0 10px;
+            font-size: 14px;
+            color: #fff;
+        }
+        
+        .ui-row {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 8px;
+            align-items: center;
+            margin: 6px 0;
+        }
+        
+        .ui-label {
+            font-size: 12px;
+            color: #cfd3d7;
+        }
+        
+        .ui-control {
+            width: 100%;
+        }
+        
+        .swatches-container {
+            display: grid;
+            grid-template-columns: repeat(6, 20px);
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        
+        .swatch {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+        }
+        
+        .buttons-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin: 8px 0;
+        }
+        
+        button {
+            padding: 6px;
+            cursor: pointer;
+            background: rgba(60, 60, 60, 0.8);
+            color: #eee;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        
+        button:hover {
+            background: rgba(80, 80, 80, 0.9);
+        }
+        
+        select, input[type="range"] {
+            background: rgba(40, 40, 40, 0.8);
+            color: #eee;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            padding: 4px;
+        }
+        
+        input[type="checkbox"] {
+            margin: 0;
+        }
+        
+        @media (max-width: 768px) {
+            #ui-panel {
+                max-width: 90%;
+                font-size: 12px;
+            }
+            
+            .ui-row {
+                grid-template-columns: 100px 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="ui-panel">
+        <h3>万花筒国潮纹样（自动绘制版）</h3>
+        
+        <div class="ui-row">
+            <span class="ui-label">配色方案</span>
+            <select id="scheme" class="ui-control"></select>
+        </div>
+        
+        <div class="ui-row">
+            <span class="ui-label">对称数</span>
+            <input type="range" id="symmetry" class="ui-control" min="4" max="36" value="16">
+        </div>
+        
+        <div class="ui-row">
+            <span class="ui-label">笔刷类型</span>
+            <select id="brush" class="ui-control"></select>
+        </div>
+        
+        <div class="ui-row">
+            <span class="ui-label">笔刷大小</span>
+            <input type="range" id="brushSize" class="ui-control" min="4" max="140" value="42">
+        </div>
+        
+        <div class="ui-row">
+            <span class="ui-label">线宽</span>
+            <input type="range" id="lineWidth" class="ui-control" min="1" max="14" value="2">
+        </div>
+        
+        <div class="ui-row">
+            <span class="ui-label">随机配色</span>
+            <input type="checkbox" id="randomColor">
+        </div>
+        
+        <div class="ui-row">
+            <span class="ui-label">填充图形</span>
+            <input type="checkbox" id="fillEnabled">
+        </div>
+        
+        <div class="ui-row">
+            <span class="ui-label">柔和抖动</span>
+            <input type="range" id="jitter" class="ui-control" min="0" max="12" step="0.5" value="0.8">
+        </div>
+        
+        <div class="ui-row">
+            <span class="ui-label">自动绘制</span>
+            <input type="checkbox" id="autoEnabled">
+        </div>
+        
+        <div class="ui-row">
+            <span class="ui-label">自动模式</span>
+            <select id="autoMode" class="ui-control"></select>
+        </div>
+        
+        <div class="ui-row">
+            <span class="ui-label">自动速度</span>
+            <input type="range" id="autoSpeed" class="ui-control" min="0.5" max="6" step="0.1" value="1.0">
+        </div>
+        
+        <div class="ui-label" style="margin: 6px 0 4px;">点击色块锁定颜色（会取消随机配色）</div>
+        <div class="swatches-container" id="swatches"></div>
+        
+        <div class="buttons-row">
+            <button id="clearBtn">清屏</button>
+            <button id="saveBtn">保存PNG</button>
+            <button id="shuffleBtn">随机风格</button>
+        </div>
+    </div>
+
+    <script>
+        // 冯梓寒的万花筒国潮纹样
+        let symmetryCount = 16;
+        let brushType = 'scallop';
+        let brushSize = 42;
+        let lineWidth = 2;
+        let randomColorEnabled = true;
+        let fillEnabled = false;
+        let jitterAmount = 0.8;
+
+        let centerX, centerY;
+
+        // 参考配色（黑色背景）
+        const PALETTES = [
+            { name: '青赤·国潮', bg: '#000000', colors: ['#BCE0E0','#5EAEAF','#640F0A','#9A6543','#D1B298','#FFFFFF'] },
+            { name: '藕紫青绿', bg: '#000000', colors: ['#6A5AA2','#8ED7C6','#B388C6','#F5E6F0','#223A5E','#FFFFFF'] },
+            { name: '青绿赭石', bg: '#000000', colors: ['#2D6AA6','#3AAE9F','#F0A14A','#8F5E3D','#E5CFAF','#FFFFFF'] },
+            { name: '粉金洛绮', bg: '#000000', colors: ['#F3CBD9','#D65C7A','#A2284A','#FFD98A','#66C4A0','#FFFFFF'] },
+            { name: '米白青黛', bg: '#000000', colors: ['#F6ECD7','#1F6F8B','#8D4BBB','#EF4E3A','#57A773','#FFFFFF'] }
+        ];
+        let currentPalette = PALETTES[0];
+        let selectedColor = currentPalette.colors[2];
+
+        // 自动绘制
+        let autoEnabled = false;
+        let autoMode = 'orbit'; // orbit/noise/roses/bursts
+        let autoSpeed = 1.0;    // 每帧步数
+        let autoT = 0;
+        let vCurrAuto, vPrevAuto;
+        let autoNoiseSeed = Math.random() * 1000;
+
+        // UI元素引用
+        let uiElements = {};
+
+        function setup() {
+            createCanvas(windowWidth, windowHeight);
+            pixelDensity(2);
+            centerX = width / 2;
+            centerY = height / 2;
+
+            buildUI();
+            applyBackground();
+            drawBackgroundPattern();
+
+            vCurrAuto = createVector(0, 0);
+            vPrevAuto = createVector(0, 0);
+
+            noFill();
+            strokeCap(ROUND);
+            strokeJoin(ROUND);
+        }
+
+        function windowResized() {
+            resizeCanvas(windowWidth, windowHeight);
+            centerX = width / 2;
+            centerY = height / 2;
+            applyBackground();
+            drawBackgroundPattern();
+        }
+
+        function draw() {
+            if (autoEnabled) {
+                // 自动模式：根据速度做多步
+                const steps = max(1, floor(autoSpeed * 2));
+                for (let s = 0; s < steps; s++) {
+                    vPrevAuto = vCurrAuto.copy();
+                    vCurrAuto = getAutoTarget(autoMode, autoT);
+                    renderSymmetric(vPrevAuto, vCurrAuto);
+                    // 偶尔做印章式点缀
+                    if (frameCount % int(24 / autoSpeed + 1) === 0 && brushType !== 'stroke') {
+                        renderStamp(vCurrAuto);
+                    }
+                    // 随机微调风格
+                    if (frameCount % 480 === 0) autoStyleShuffle();
+                    autoT += 0.006 * autoSpeed;
+                }
+                return;
+            }
+
+            // 手绘模式
+            if (!mouseIsPressed) return;
+            if (isOverUI()) return;
+            const current = createVector(mouseX - centerX, mouseY - centerY);
+            const previous = createVector(pmouseX - centerX, pmouseY - centerY);
+            renderSymmetric(previous, current);
+        }
+
+        function mousePressed() {
+            if (isOverUI()) return;
+            if (brushType !== 'stroke' && !autoEnabled) {
+                const v = createVector(mouseX - centerX, mouseY - centerY);
+                renderStamp(v);
+            }
+        }
+
+        //——— 自动绘制核心 ———
+        function getAutoTarget(mode, t) {
+            const R = min(width, height) * 0.42;
+            switch (mode) {
+                case 'orbit': {
+                    const a = t * TWO_PI * 0.12;
+                    const r = R * (0.35 + 0.12 * sin(t * 3.1)) + 40 * noise(t * 0.8);
+                    return createVector(r * cos(a), r * sin(a));
+                }
+                case 'noise': {
+                    const nx = noise(autoNoiseSeed + t * 0.6);
+                    const ny = noise(autoNoiseSeed + 100 + t * 0.6);
+                    const r = R * (0.15 + nx * 0.55);
+                    const a = TWO_PI * ny;
+                    return createVector(r * cos(a), r * sin(a));
+                }
+                case 'roses': {
+                    const k = 5; // 玫瑰线叶瓣数
+                    const a = t * TWO_PI * 0.18;
+                    const r = R * 0.45 * cos(k * a) + R * 0.25;
+                    return createVector(r * cos(a), r * sin(a));
+                }
+                case 'bursts': {
+                    const period = 420;
+                    const phase = (frameCount % period) / period;
+                    const a = TWO_PI * (phase + t * 0.05);
+                    const r = R * pow(phase, 0.7);
+                    return createVector(r * cos(a), r * sin(a));
+                }
+            }
+            return createVector(0, 0);
+        }
+
+        function renderSymmetric(vPrev, vCurr) {
+            const angleStep = TWO_PI / symmetryCount;
+
+            push();
+            translate(centerX, centerY);
+
+            const baseColor = randomColorEnabled ? random(currentPalette.colors) : selectedColor;
+            const strokeCol = color(baseColor);
+            const fillCol = color(baseColor);
+            strokeCol.setAlpha(255);
+            fillCol.setAlpha(fillEnabled ? 200 : 0);
+
+            stroke(strokeCol);
+            strokeWeight(lineWidth);
+            if (fillEnabled) fill(fillCol); else noFill();
+
+            for (let i = 0; i < symmetryCount; i++) {
+                push();
+                rotate(i * angleStep);
+
+                const jittered = withJitter(vCurr, jitterAmount);
+                const jitteredPrev = withJitter(vPrev, jitterAmount);
+
+                drawBrush(jitteredPrev, jittered);
+
+                scale(-1, 1);
+                drawBrush(
+                    createVector(-jitteredPrev.x, jitteredPrev.y),
+                    createVector(-jittered.x, jittered.y)
+                );
+                pop();
+            }
+
+            pop();
+        }
+
+        function renderStamp(v) {
+            const angleStep = TWO_PI / symmetryCount;
+
+            push();
+            translate(centerX, centerY);
+
+            const baseColor = randomColorEnabled ? random(currentPalette.colors) : selectedColor;
+            const strokeCol = color(baseColor);
+            const fillCol = color(baseColor);
+            strokeCol.setAlpha(255);
+            fillCol.setAlpha(fillEnabled ? 200 : 0);
+
+            stroke(strokeCol);
+            strokeWeight(lineWidth);
+            if (fillEnabled) fill(fillCol); else noFill();
+
+            for (let i = 0; i < symmetryCount; i++) {
+                push();
+                rotate(i * angleStep);
+                drawBrush(v, v, true);
+                scale(-1, 1);
+                drawBrush(createVector(-v.x, v.y), createVector(-v.x, v.y), true);
+                pop();
+            }
+
+            pop();
+        }
+
+        //——— 笔刷 ———
+        function drawBrush(vPrev, vCurr, single = false) {
+            switch (brushType) {
+                case 'stroke': {
+                    line(vPrev.x, vPrev.y, vCurr.x, vCurr.y);
+                    const d = p5.Vector.sub(vCurr, vPrev).mag();
+                    if (d > brushSize * 0.6) {
+                        const t = 0.5;
+                        const mx = lerp(vPrev.x, vCurr.x, t);
+                        const my = lerp(vPrev.y, vCurr.y, t);
+                        push(); noFill(); circle(mx, my, lineWidth * 1.8); pop();
+                    }
+                    break;
+                }
+                case 'scallop': {
+                    const s = brushSize, a = atan2(vCurr.y, vCurr.x);
+                    push(); translate(vCurr.x, vCurr.y); rotate(a); scale(s / 64); scallopGlyph(); pop(); break;
+                }
+                case 'paisley': {
+                    const s = brushSize, a = atan2(vCurr.y, vCurr.x);
+                    push(); translate(vCurr.x, vCurr.y); rotate(a); scale(s / 64); paisleyGlyph(); pop(); break;
+                }
+                case 'cloud': {
+                    const s = brushSize; push(); translate(vCurr.x, vCurr.y); scale(s / 64); cloudGlyph(); pop(); break;
+                }
+                case 'leaf': {
+                    const s = brushSize, a = atan2(vCurr.y, vCurr.x);
+                    push(); translate(vCurr.x, vCurr.y); rotate(a); scale(s / 64); leafGlyph(); pop(); break;
+                }
+                case 'dot': {
+                    const s = brushSize * 0.35; push(); translate(vCurr.x, vCurr.y); circle(0, 0, s); pop(); break;
+                }
+                case 'ruyi': {
+                    const s = brushSize; push(); translate(vCurr.x, vCurr.y); scale(s / 64); ruyiGlyph(); pop(); break;
+                }
+                case 'petal': {
+                    const s = brushSize, a = atan2(vCurr.y, vCurr.x);
+                    push(); translate(vCurr.x, vCurr.y); rotate(a); scale(s / 64); petalGlyph(); pop(); break;
+                }
+                case 'meander': {
+                    const s = brushSize, a = atan2(vCurr.y, vCurr.x);
+                    push(); translate(vCurr.x, vCurr.y); rotate(a); scale(s / 64); meanderGlyph(); pop(); break;
+                }
+                case 'star': {
+                    const s = brushSize; push(); translate(vCurr.x, vCurr.y); scale(s / 80); starKnotGlyph(); pop(); break;
+                }
+            }
+        }
+
+        //——— 装饰性图形（矢量路径） ———
+        function scallopGlyph() {
+            push();
+            beginShape();
+            vertex(-28, 0);
+            bezierVertex(-20, -22, 20, -22, 28, 0);
+            bezierVertex(20, 18, -20, 18, -28, 0);
+            endShape(CLOSE);
+            noFill();
+            beginShape();
+            vertex(-20, 0);
+            bezierVertex(-14, -14, 14, -14, 20, 0);
+            bezierVertex(14, 12, -14, 12, -20, 0);
+            endShape(CLOSE);
+            pop();
+        }
+
+        function paisleyGlyph() {
+            push();
+            beginShape();
+            vertex(-26, 0);
+            bezierVertex(-16, -22, 18, -14, 24, 0);
+            bezierVertex(18, 16, -10, 20, -26, 0);
+            endShape(CLOSE);
+            noFill();
+            beginShape();
+            vertex(-12, 0);
+            bezierVertex(-6, -10, 8, -8, 12, 0);
+            bezierVertex(8, 8, -4, 10, -12, 0);
+            endShape(CLOSE);
+            arc(6, 0, 10, 10, -PI/2, PI/2);
+            pop();
+        }
+
+        function cloudGlyph() {
+            push();
+            noFill();
+            beginShape();
+            for (let i = 0; i < 3; i++) {
+                const ox = i * 18;
+                bezierVertex(8 + ox, -6, 16 + ox, -6, 16 + ox, 0);
+                bezierVertex(16 + ox, 6, 8 + ox, 6, 8 + ox, 0);
+            }
+            endShape();
+            for (let r = 12; r <= 20; r += 4) arc(24, 0, r, r, -PI / 2, PI / 2);
+            pop();
+        }
+
+        function leafGlyph() {
+            push();
+            beginShape();
+            vertex(0, -28);
+            bezierVertex(16, -14, 20, 10, 0, 28);
+            bezierVertex(-20, 10, -16, -14, 0, -28);
+            endShape(CLOSE);
+            line(0, -24, 0, 24);
+            line(0, -6, 10, 4);
+            line(0, 2, -10, 12);
+            pop();
+        }
+
+        function ruyiGlyph() {
+            push();
+            noFill();
+            beginShape();
+            bezierVertex(0, -10, 20, -20, 28, 0);
+            bezierVertex(20, 18, 0, 12, -10, 8);
+            bezierVertex(-20, 4, -22, -2, -18, -10);
+            endShape();
+            line(-18, -10, -30, -18);
+            line(-12, 6, -26, 14);
+            pop();
+        }
+
+        function petalGlyph() {
+            push();
+            beginShape();
+            vertex(0, -28);
+            bezierVertex(12, -18, 18, -6, 14, 10);
+            bezierVertex(8, 18, 0, 24, 0, 28);
+            bezierVertex(0, 24, -8, 18, -14, 10);
+            bezierVertex(-18, -6, -12, -18, 0, -28);
+            endShape(CLOSE);
+            line(0, -26, 0, 26);
+            line(0, -6, 8, 8);
+            line(0, 0, -8, 14);
+            pop();
+        }
+
+        function meanderGlyph() {
+            push();
+            noFill();
+            const step = 8;
+            let x = -28, y = -16;
+            beginShape();
+            vertex(x, y);
+            x += step; vertex(x, y);
+            y += step; vertex(x, y);
+            x += step; vertex(x, y);
+            y -= step; vertex(x, y);
+            x += step; vertex(x, y);
+            y += step; vertex(x, y);
+            x += step; vertex(x, y);
+            y -= step; vertex(x, y);
+            x += step; vertex(x, y);
+            endShape();
+            pop();
+        }
+
+        function starKnotGlyph() {
+            push();
+            noFill();
+            const r1 = 26, r2 = 12;
+            for (let i = 0; i < 8; i++) {
+                const a = (TWO_PI / 8) * i;
+                const x1 = r1 * cos(a), y1 = r1 * sin(a);
+                const x2 = r2 * cos(a + PI / 8), y2 = r2 * sin(a + PI / 8);
+                line(x1, y1, x2, y2);
+            }
+            beginShape();
+            for (let i = 0; i < 8; i++) {
+                const a = (TWO_PI / 8) * i;
+                vertex(r1 * cos(a), r1 * sin(a));
+                vertex(r2 * cos(a + PI / 8), r2 * sin(a + PI / 8));
+            }
+            endShape(CLOSE);
+            pop();
+        }
+
+        //——— 背景（黑底+暗纹） ———
+        function applyBackground() { 
+            background('#000000'); 
+        }
+
+        function drawBackgroundPattern() {
+            push();
+            noStroke();
+            // 在黑色背景上绘制微弱的白色点
+            for (let i = 0; i < 3000; i++) {
+                const x = random(width), y = random(height);
+                fill(255, 255, 255, 1.5); 
+                rect(x, y, 1, 1);
+            }
+            // 添加微弱的背景纹理线条
+            stroke(255, 255, 255, 5); 
+            noFill();
+            for (let i = 0; i < 16; i++) {
+                const cx = random(width), cy = random(height), r = random(60, 180), t = random(TWO_PI);
+                beginShape();
+                for (let a = 0; a < TWO_PI; a += PI / 24) {
+                    const rr = r + sin(a * 3 + t) * 8; 
+                    vertex(cx + rr * cos(a), cy + rr * sin(a));
+                }
+                endShape(CLOSE);
+            }
+            pop();
+        }
+
+        //——— 工具 ———
+        function withJitter(v, amt) { 
+            if (amt <= 0) return v.copy(); 
+            return createVector(v.x + randomGaussian() * amt, v.y + randomGaussian() * amt); 
+        }
+
+        function autoStyleShuffle() {
+            // 小概率切换配色/笔刷/参数，保持整体风格
+            if (random() < 0.25) {
+                currentPalette = random(PALETTES);
+                selectedColor = random(currentPalette.colors);
+                applyBackground(); 
+                drawBackgroundPattern();
+                if (uiElements.scheme) {
+                    uiElements.scheme.value = PALETTES.indexOf(currentPalette);
+                    buildSwatches();
+                }
+            }
+            if (random() < 0.35) {
+                const brushes = ['scallop','paisley','leaf','cloud','dot','petal','star','meander','stroke'];
+                brushType = random(brushes); 
+                if (uiElements.brush) uiElements.brush.value = brushType;
+            }
+            if (random() < 0.3) {
+                symmetryCount = int(random([8,10,12,14,16,18,20,24])); 
+                if (uiElements.symmetry) uiElements.symmetry.value = symmetryCount;
+            }
+            if (random() < 0.4) {
+                brushSize = int(random(24, 86)); 
+                if (uiElements.brushSize) uiElements.brushSize.value = brushSize;
+            }
+        }
+
+        //——— UI ———
+        function buildUI() {
+            // 配色方案
+            uiElements.scheme = document.getElementById('scheme');
+            PALETTES.forEach((p, i) => {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = p.name;
+                uiElements.scheme.appendChild(option);
+            });
+            uiElements.scheme.value = 0;
+            uiElements.scheme.addEventListener('change', () => { 
+                currentPalette = PALETTES[int(uiElements.scheme.value)]; 
+                selectedColor = currentPalette.colors[2]; 
+                applyBackground(); 
+                drawBackgroundPattern(); 
+                buildSwatches(); 
+            });
+
+            // 对称数
+            uiElements.symmetry = document.getElementById('symmetry');
+            uiElements.symmetry.value = symmetryCount;
+            uiElements.symmetry.addEventListener('input', () => symmetryCount = parseInt(uiElements.symmetry.value));
+
+            // 笔刷
+            uiElements.brush = document.getElementById('brush');
+            const brushOptions = [
+                ['stroke','线描'],
+                ['scallop','扇瓣边'],
+                ['paisley','泪滴'],
+                ['leaf','叶片'],
+                ['cloud','祥云卷'],
+                ['dot','点珠'],
+                ['ruyi','如意'],
+                ['petal','莲瓣'],
+                ['meander','回纹'],
+                ['star','星结']
+            ];
+            brushOptions.forEach(([v, t]) => {
+                const option = document.createElement('option');
+                option.value = v;
+                option.textContent = t;
+                uiElements.brush.appendChild(option);
+            });
+            uiElements.brush.value = brushType;
+            uiElements.brush.addEventListener('change', () => brushType = uiElements.brush.value);
+
+            // 大小&线宽
+            uiElements.brushSize = document.getElementById('brushSize');
+            uiElements.brushSize.value = brushSize;
+            uiElements.brushSize.addEventListener('input', () => brushSize = parseInt(uiElements.brushSize.value));
+
+            uiElements.lineWidth = document.getElementById('lineWidth');
+            uiElements.lineWidth.value = lineWidth;
+            uiElements.lineWidth.addEventListener('input', () => lineWidth = parseInt(uiElements.lineWidth.value));
+
+            // 色彩&抖动
+            uiElements.randomColor = document.getElementById('randomColor');
+            uiElements.randomColor.checked = randomColorEnabled;
+            uiElements.randomColor.addEventListener('change', () => randomColorEnabled = uiElements.randomColor.checked);
+
+            uiElements.fillEnabled = document.getElementById('fillEnabled');
+            uiElements.fillEnabled.checked = fillEnabled;
+            uiElements.fillEnabled.addEventListener('change', () => fillEnabled = uiElements.fillEnabled.checked);
+
+            uiElements.jitter = document.getElementById('jitter');
+            uiElements.jitter.value = jitterAmount;
+            uiElements.jitter.addEventListener('input', () => jitterAmount = parseFloat(uiElements.jitter.value));
+
+            // 自动绘制控制
+            uiElements.autoEnabled = document.getElementById('autoEnabled');
+            uiElements.autoEnabled.checked = autoEnabled;
+            uiElements.autoEnabled.addEventListener('change', () => { autoEnabled = uiElements.autoEnabled.checked; });
+
+            uiElements.autoMode = document.getElementById('autoMode');
+            const autoModeOptions = [
+                ['orbit','绕行'],
+                ['noise','噪声游走'],
+                ['roses','玫瑰线'],
+                ['bursts','绽放脉冲']
+            ];
+            autoModeOptions.forEach(([v, t]) => {
+                const option = document.createElement('option');
+                option.value = v;
+                option.textContent = t;
+                uiElements.autoMode.appendChild(option);
+            });
+            uiElements.autoMode.value = autoMode;
+            uiElements.autoMode.addEventListener('change', () => { autoMode = uiElements.autoMode.value; });
+
+            uiElements.autoSpeed = document.getElementById('autoSpeed');
+            uiElements.autoSpeed.value = autoSpeed;
+            uiElements.autoSpeed.addEventListener('input', () => autoSpeed = parseFloat(uiElements.autoSpeed.value));
+
+            // 调色板
+            buildSwatches();
+
+            // 按钮
+            document.getElementById('clearBtn').addEventListener('click', () => { 
+                applyBackground(); 
+                drawBackgroundPattern(); 
+            });
+            document.getElementById('saveBtn').addEventListener('click', () => saveCanvas('kaleidoscope-auto', 'png'));
+            document.getElementById('shuffleBtn').addEventListener('click', () => autoStyleShuffle());
+        }
+
+        function buildSwatches() {
+            const swatchesContainer = document.getElementById('swatches');
+            swatchesContainer.innerHTML = '';
+            
+            currentPalette.colors.forEach(c => {
+                const swatch = document.createElement('div');
+                swatch.className = 'swatch';
+                swatch.style.backgroundColor = c;
+                swatch.addEventListener('click', () => { 
+                    selectedColor = c; 
+                    randomColorEnabled = false; 
+                    uiElements.randomColor.checked = false; 
+                });
+                swatchesContainer.appendChild(swatch);
+            });
+        }
+
+        function isOverUI() {
+            const panel = document.getElementById('ui-panel');
+            const r = panel.getBoundingClientRect();
+            return mouseX >= r.left && mouseX <= r.right && mouseY >= r.top && mouseY <= r.bottom;
+        }
+    </script>
+</body>
+</html>
